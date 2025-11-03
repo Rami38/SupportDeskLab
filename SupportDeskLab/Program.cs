@@ -14,6 +14,9 @@ namespace SupportDeskLab
         //Create Customer Dictionary
         //create Ticket Queue
         //Create UndoEvent stack
+        static Dictionary<string, Customer> Customers = new Dictionary<string, Customer>();
+        static Queue<Ticket> Tickets = new Queue<Ticket>();
+        static Stack<string> UndoEvents = new Stack<string>();
 
         static void Main()
         {
@@ -36,6 +39,7 @@ namespace SupportDeskLab
                 //create switch cases and then call a reletive method 
                 //for example for case 1 you need to have a method named addCustomer(); or case 2 add a method name findCustomer
 
+
                 switch (choice)
                 {
                     case "1": AddCustomer(); break;
@@ -55,40 +59,92 @@ namespace SupportDeskLab
          */
         static void initCustomer()
         {
-            //uncomments these 3 lines after you create the Customer Dictionary
-            //Customers["C001"] = new Customer("C001", "Ava Martin", "ava@example.com");
-            //Customers["C002"] = new Customer("C002", "Ben Parker", "ben@example.com");
-            //Customers["C003"] = new Customer("C003", "Chloe Diaz", "chloe@example.com");
+           
+            Customers["C001"] = new Customer("C001", "Ava Martin", "ava@example.com");
+            Customers["C002"] = new Customer("C002", "Ben Parker", "ben@example.com");
+            Customers["C003"] = new Customer("C003", "Chloe Diaz", "chloe@example.com");
         }
 
         static void AddCustomer()
         {
-            //look at the Demo captuerd image and add your code here
-           
+            Console.Write("Enter Customer ID: ");
+            string id = Console.ReadLine();
+            Console.Write("Enter Name: ");
+            string name = Console.ReadLine();
+            Console.Write("Enter Email: ");
+            string email = Console.ReadLine();
+
+            if (Customers.ContainsKey(id))
+            {
+                Console.WriteLine("Customer already exists.");
+                return;
+            }
+
+            Customers[id] = new Customer(id, name, email);
+            UndoEvents.Push($"REMOVE_CUSTOMER:{id}");
+            Console.WriteLine("Customer added successfully!");
+
         }
 
         static void FindCustomer()
         {
-            //look at the Demo captuerd image and add your code here
+            Console.Write("Enter Customer ID: ");
+            string id = Console.ReadLine();
+
+            if (Customers.TryGetValue(id, out Customer c))
+            {
+                Console.WriteLine($"Found: {c.CustomerId} | {c.Name} | {c.Email}");
+            }
+            else
+            {
+                Console.WriteLine("Customer not found.");
+            }
 
         }
 
         static void CreateTicket()
         {
-            //look at the Demo captuerd image and add your code here
-         
+            Console.Write("Enter Customer ID: ");
+            string id = Console.ReadLine();
+
+            if (!Customers.ContainsKey(id))
+            {
+                Console.WriteLine("Customer not found.");
+                return;
+            }
+
+            Console.Write("Enter Issue Description: ");
+            string issue = Console.ReadLine();
+
+            Ticket t = new Ticket(NextTicketId++, id, issue);
+            Tickets.Enqueue(t);
+            UndoEvents.Push("REMOVE_TICKET");
+            Console.WriteLine("Ticket created successfully!");
+
         }
 
         static void ServeNext()
         {
-            //look at the Demo captuerd image and add your code here
-           
+            if (Tickets.Count == 0)
+            {
+                Console.WriteLine("No tickets in queue.");
+                return;
+            }
+
+            Ticket served = Tickets.Dequeue();
+            Console.WriteLine($"Serving Ticket #{served.TicketId} for Customer {served.CustomerId}");
+            UndoEvents.Push($"ADD_TICKET:{served.TicketId}:{served.CustomerId}:{served.Issue}");
+
         }
 
         static void ListCustomers()
         {
             Console.WriteLine("-- Customers --");
-            //look at the Demo captuerd image and add your code here
+
+            foreach (var c in Customers.Values)
+            {
+                Console.WriteLine($"{c.CustomerId} | {c.Name} | {c.Email}");
+            }
 
         }
 
@@ -96,15 +152,50 @@ namespace SupportDeskLab
         {
            
             Console.WriteLine("-- Tickets (front to back) --");
-            //look at the Demo captuerd image and add your code here
+            foreach (var t in Tickets)
+            {
+                Console.WriteLine($"Ticket #{t.TicketId} | Customer: {t.CustomerId} | Issue: {t.Issue}");
+            }
 
         }
 
         static void Undo()
         {
-            //look at the Demo captuerd image and add your code here
-           
+            if (UndoEvents.Count == 0)
+            {
+                Console.WriteLine("Nothing to undo.");
+                return;
+            }
+
+            string lastAction = UndoEvents.Pop();
+
+            if (lastAction.StartsWith("REMOVE_CUSTOMER:"))
+            {
+                string id = lastAction.Split(':')[1];
+                Customers.Remove(id);
+                Console.WriteLine($"Undo: removed customer {id}");
+            }
+            else if (lastAction == "REMOVE_TICKET")
+            {
+                if (Tickets.Count > 0)
+                {
+                    Ticket removed = Tickets.Last(); // requires System.Linq
+                    var temp = new Queue<Ticket>(Tickets.Where(t => t != removed));
+                    Tickets = temp;
+                    Console.WriteLine("Undo: removed last created ticket");
+                }
+            }
+            else if (lastAction.StartsWith("ADD_TICKET:"))
+            {
+                var parts = lastAction.Split(':');
+                int tid = int.Parse(parts[1]);
+                string cid = parts[2];
+                string issue = parts[3];
+                Tickets.Enqueue(new Ticket(tid, cid, issue));
+                Console.WriteLine("Undo: re-added last served ticket");
+            }
         }
+
     }
 }
 
